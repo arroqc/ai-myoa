@@ -46,7 +46,6 @@ provider "aws" {
 - `network.tf` — VPC, subnets, route tables, security groups, VPC endpoints
 - `storage.tf` — S3 buckets and all their sub-resources (policies, encryption, CORS, public access blocks), DynamoDB tables
 - `lambdas.tf` — IAM roles, IAM policies (inline with `jsonencode`), Lambda functions, Lambda layers
-- `api.tf` — API Gateway resources, Lambda invoke permissions, `local_file` template rendering, `aws_s3_object` website uploads, all `output` blocks
 
 ### Naming
 - Resource names use the project prefix: `ai-myoa-<purpose>` (e.g., `ai-myoa-images`, `ai-myoa-sessions`)
@@ -54,10 +53,8 @@ provider "aws" {
 
 ### S3 Buckets
 Every S3 bucket gets all four companion resources — no exceptions:
-1. `aws_s3_bucket_public_access_block` — private buckets block everything; website bucket opens ACLs/policy
-2. `aws_s3_bucket_server_side_encryption_configuration` — always AES256
-3. `aws_s3_bucket_policy` — least-privilege; grant only the principals that need access
-4. CORS config only where browser-direct access is required
+1. `aws_s3_bucket_server_side_encryption_configuration` — always AES256
+2. `aws_s3_bucket_policy` — least-privilege; grant only the principals that need access
 
 ### Lambda
 - Runtime: `python3.11`
@@ -75,24 +72,11 @@ Every S3 bucket gets all four companion resources — no exceptions:
 - Bedrock accessed via an Interface VPC endpoint (`bedrock-runtime`) with `private_dns_enabled = true`
 - Security groups: Lambda SG (egress 443 only) → Bedrock endpoint SG (ingress from Lambda SG on 443)
 
-### API Gateway
-- Use HTTP API (`protocol_type = "HTTP"`) — not REST API
-- CORS configured on the API resource itself (not at the route level)
-- Single `$default` stage with `auto_deploy = true`
-- One integration per Lambda (`AWS_PROXY`, `payload_format_version = "2.0"`)
-- `aws_lambda_permission` with `source_arn = "${api.execution_arn}/*/*"` for each function
-
 ### Frontend Deployment
 - React app built with Vite; output is plain static files
 - API endpoint injected at deploy time using `templatefile()` + `local_file` → `aws_s3_object`
 - Website bucket: public access unblocked, public `GetObject` bucket policy, S3 website configuration enabled
 - Note: S3 website endpoint is HTTP only; add CloudFront for HTTPS in production
-
-### Outputs
-All outputs live in `api.tf`:
-- `api_gateway_endpoint` — invoke URL
-- `website_url` — S3 website endpoint
-- Any bucket names the frontend or CI needs
 
 ## Bedrock Models
 
